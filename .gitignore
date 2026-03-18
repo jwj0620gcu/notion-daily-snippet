@@ -1,0 +1,10 @@
+notion-daily-snippet/
+.env
+.env.*
+!.env.example
+
+node_modules/
+
+*.log
+
+.DS_Store

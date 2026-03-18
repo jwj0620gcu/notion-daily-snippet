@@ -1,0 +1,19 @@
+{
+  "name": "notion-daily-sync",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "sync": "node sync-notion-to-snippet.mjs",
+    "test:school-date": "node test-school-date.mjs",
+    "test:page-data": "node test-school-page-data.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@notionhq/client": "^5.13.0",
+    "dotenv": "^17.3.1"
+  }
+}
