@@ -310,22 +310,25 @@ async function generateSnippetContent(sourceText, snippetDate) {
   }
 
   const prompt = [
-    `입력된 노션 데일리 메모를 바탕으로 ${snippetDate}의 데일리 스니펫을 작성해라.`,
+    `입력된 노션 데일리 메모를 바탕으로 ${snippetDate}의 데일리 회고를 작성해라.`,
     "입력은 짧고 거칠 수 있지만, 과장하지 말고 입력에 없는 사실은 만들지 마라.",
     "출력은 반드시 JSON 객체 하나만 반환해라.",
+    "태스크별로 '오늘 한 일 / 하이라이트 / 로우라이트 / 내일의 우선순위'를 각각 반복해서 쓰지 말아라.",
+    "반드시 하루 전체 기준으로 회고를 통합해서 작성해라.",
+    "즉, '오늘 한 일' 섹션 아래에 여러 태스크를 한 번에 묶어 정리하고, '하이라이트'도 하루 전체 관점에서 중요한 내용만 종합해서 정리해라.",
+    "로우라이트, 내일의 우선순위, 오늘 내가 팀에 기여한 가치, 오늘의 배움 또는 남길 말도 각각 하루 전체 기준으로 통합 작성해라.",
+    "태스크별 개별 소제목은 만들지 마라.",
+    "같은 형식 문장을 반복하지 말고, 비슷한 내용은 묶어서 자연스럽게 정리해라.",
+    "하이라이트와 로우라이트는 하루에서 중요도가 높은 것만 1~3개 정도로 추려서 작성해라.",
+    "문체는 노션 데일리 기록에 맞게 간결하지만 의미 있게 작성해라.",
     "각 필드는 모두 한국어 문자열로 작성해라.",
-    "기존처럼 한 줄 요약으로 쓰지 말고, 반드시 Task 단위로 구조화해라.",
-    "입력된 작업들을 의미 있는 태스크들로 나눠라.",
-    "각 task는 name, highlights, lowlights를 가져야 한다.",
-    "highlights와 lowlights는 각각 문자열 배열로 작성해라.",
     "각 항목은 키워드가 아니라 의미 있는 문장 단위로 구체적으로 작성해라.",
-    "lowlights는 부족한 점이나 개선 필요 사항을 보수적으로 작성해라. 명확한 문제가 없으면 '특별한 로우라이트 없음'처럼 정직하게 작성해라.",
-    "tomorrow_priority는 내일 바로 실행할 우선순위를 한 문장으로 작성해라.",
-    "team_value는 오늘 팀에 준 기여를 협업 관점에서 한두 문장으로 작성해라. 없으면 개인 준비가 팀에 어떻게 연결되는지 보수적으로 작성해라.",
+    "입력에 없는 사실은 지어내지 말고, 추론이 필요하면 보수적으로 작성해라.",
+    "lowlight는 부족한 점이나 개선 필요 사항을 보수적으로 작성해라. 명확한 문제가 없으면 '특별한 로우라이트 없음'처럼 정직하게 작성해라.",
+    "team_value는 오늘 팀에 준 기여를 협업 관점에서 작성해라. 없으면 개인 준비가 팀에 어떻게 연결되는지 보수적으로 작성해라.",
     "learning_or_note는 오늘의 배움이나 남길 말을 한두 문장으로 작성해라.",
     'health_score는 1부터 10 사이의 정수로 작성해라.',
-    "JSON 키는 다음만 사용해라: tasks, tomorrow_priority, team_value, learning_or_note, health_score",
-    "tasks는 배열이며, 각 원소는 다음 키만 사용해라: name, highlights, lowlights",
+    "JSON 키는 다음만 사용해라: today_work, purpose, highlight, lowlight, tomorrow_priority, team_value, learning_or_note, health_score",
     "",
     "[노션 원문 시작]",
     sourceText,
@@ -352,50 +355,32 @@ async function generateSnippetContent(sourceText, snippetDate) {
 
   const responseText = getResponseText(data);
   const parsed = extractJsonObject(responseText);
-  const tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
   const healthScore = Number(parsed.health_score);
-  const lines = [];
-
-  tasks.forEach((task, index) => {
-    const highlights = Array.isArray(task?.highlights) ? task.highlights : [];
-    const lowlights = Array.isArray(task?.lowlights) ? task.lowlights : [];
-
-    lines.push(`## Task ${index + 1}: ${task?.name || "이름 없음"}`);
-    lines.push(`### Highlight`);
-
-    if (highlights.length > 0) {
-      highlights.forEach((item) => lines.push(`- ${item}`));
-    } else {
-      lines.push(`- 특별히 정리된 Highlight 없음`);
-    }
-
-    lines.push(``);
-    lines.push(`### Lowlight`);
-
-    if (lowlights.length > 0) {
-      lowlights.forEach((item) => lines.push(`- ${item}`));
-    } else {
-      lines.push(`- 특별한 로우라이트 없음`);
-    }
-
-    lines.push(``);
-  });
-
-  lines.push(`## 내일의 우선순위`);
-  lines.push(`- ${parsed.tomorrow_priority || ""}`);
-  lines.push(``);
-  lines.push(`## 오늘 내가 팀에 기여한 가치`);
-  lines.push(`- ${parsed.team_value || ""}`);
-  lines.push(``);
-  lines.push(`## 오늘의 배움 또는 남길 말`);
-  lines.push(`- ${parsed.learning_or_note || ""}`);
-  lines.push(``);
-  lines.push(`## 헬스 체크 (10점)`);
-  lines.push(
+  return [
+    `## 오늘 한 일`,
+    `- ${parsed.today_work || ""}`,
+    ``,
+    `## 수행 목적`,
+    `- ${parsed.purpose || ""}`,
+    ``,
+    `## 하이라이트`,
+    `- ${parsed.highlight || ""}`,
+    ``,
+    `## 로우라이트`,
+    `- ${parsed.lowlight || ""}`,
+    ``,
+    `## 내일의 우선순위`,
+    `- ${parsed.tomorrow_priority || ""}`,
+    ``,
+    `## 오늘 내가 팀에 기여한 가치`,
+    `- ${parsed.team_value || ""}`,
+    ``,
+    `## 오늘의 배움 또는 남길 말`,
+    `- ${parsed.learning_or_note || ""}`,
+    ``,
+    `## 헬스 체크 (10점)`,
     `- ${Number.isFinite(healthScore) ? Math.min(10, Math.max(1, Math.round(healthScore))) : ""}/10`,
-  );
-
-  return lines.join("\n");
+  ].join("\n");
 }
 
 async function main() {
